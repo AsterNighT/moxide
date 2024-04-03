@@ -230,6 +230,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "moxide"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "derive_more",
+ "num-traits",
+ "tracing",
+ "winapi",
+]
+
+[[package]]
 name = "nibble_vec"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -297,23 +308,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
-name = "oxide"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "derive_more",
- "num-traits",
- "tracing",
- "winapi",
-]
-
-[[package]]
 name = "oxide-cli"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
  "is_elevated",
- "oxide",
+ "moxide",
  "rustyline",
  "tracing",
  "tracing-subscriber",

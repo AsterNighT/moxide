@@ -1,7 +1,7 @@
 use std::process::exit;
 
 use color_eyre::eyre::{eyre, Result};
-use oxide::{
+use moxide::{
     process::{enum_proc, Process},
     scanner::{
         BasicScanPattern, BasicScanner, ListScanResult, ScanConfig, ScanResult, ScanType, Scanner, Writer,

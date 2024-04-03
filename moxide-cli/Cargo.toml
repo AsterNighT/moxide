@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
-oxide ={ path = "../oxide" }
+moxide ={ path = "../moxide" }
 color-eyre = "0.6.3"
 is_elevated = "0.1.2"
 rustyline = "14.0.0"
