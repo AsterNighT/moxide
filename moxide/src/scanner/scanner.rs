@@ -1,5 +1,3 @@
-use std::default;
-
 use crate::process::Process;
 use color_eyre::eyre::{eyre, Result};
 use winapi::um::winnt;

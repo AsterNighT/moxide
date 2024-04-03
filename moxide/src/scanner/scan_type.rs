@@ -25,7 +25,6 @@ impl ScanType {
             ScanType::I16(_) => ScanType::I16(i16::from_ne_bytes(bytes.try_into().unwrap())),
             ScanType::F32(_) => ScanType::F32(f32::from_ne_bytes(bytes.try_into().unwrap())),
             ScanType::F64(_) => ScanType::F64(f64::from_ne_bytes(bytes.try_into().unwrap())),
-            _ => panic!("Invalid byte length"),
         }
     }
     pub fn to_ne_bytes(&self) -> Vec<u8> {
@@ -34,7 +33,6 @@ impl ScanType {
             ScanType::I16(value) => value.to_ne_bytes().to_vec(),
             ScanType::F32(value) => value.to_ne_bytes().to_vec(),
             ScanType::F64(value) => value.to_ne_bytes().to_vec(),
-            _ => panic!("Invalid type"),
         }
     }
     pub fn from_str(value: &str) -> Result<Self> {
