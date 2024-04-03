@@ -51,6 +51,8 @@ impl ScanType {
         match data_type {
             "i32" => Ok(ScanType::I32(value.parse::<i32>()?)),
             "i16" => Ok(ScanType::I16(value.parse::<i16>()?)),
+            "f32" => Ok(ScanType::F32(value.parse::<f32>()?)),
+            "f64" => Ok(ScanType::F64(value.parse::<f64>()?)),
             _ => Err(eyre!("Invalid type")),
         }
     }
