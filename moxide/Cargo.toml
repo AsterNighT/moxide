@@ -1,0 +1,17 @@
+[package]
+name = "oxide"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6.3"
+num-traits = "0.2.18"
+tracing = "0.1.40"
+winapi = { version = "0.3.9", features = [
+    "psapi",
+    "processthreadsapi",
+    "handleapi",
+    "memoryapi",
+    "impl-debug",
+] }
+derive_more = { version = "0.99.11", features = ["display"] }

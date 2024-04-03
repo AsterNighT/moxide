@@ -1,0 +1,3 @@
+[workspace]
+members = ["moxide", "moxide-cli"]
+resolver = "2"
