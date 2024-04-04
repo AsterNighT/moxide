@@ -4,17 +4,19 @@ use color_eyre::eyre::{eyre, Result};
 use moxide::{
     process::{enum_proc, Process},
     scanner::{
-        BasicScanPattern, BasicScanner, ListScanResult, ScanConfig, ScanResult, ScanType, Scanner, Writer,
+        BasicScanner, BasicWriter, ListScanResult, ScanConfig, ScanResult, ScannableCandidate,
+        Scanner,
     },
 };
 
 pub struct App {
     attached_process: Option<Process>,
     config: ScanConfig,
-    scanner: BasicScanner,
-    writer: Writer,
-    result: Option<ListScanResult>,
+    scanner: Vec<Box<dyn Scanner>>,
+    writer: BasicWriter,
 }
+
+
 
 impl App {
     pub fn new() -> App {
@@ -23,7 +25,7 @@ impl App {
             scanner: BasicScanner {},
             result: None,
             config: ScanConfig::default(),
-            writer: Writer::new()
+            writer: Writer::new(),
         }
     }
     pub fn handle_input(&mut self, input: &str) -> Result<String> {
@@ -102,9 +104,10 @@ impl App {
         } else {
             // Write to all results
             let result = self.result.as_ref().ok_or(eyre!("No scan results"))?;
-            result.to_list().iter().try_for_each(|r| {
-                self.writer.write(process, r.address, &value).map(|_|())
-            })?
+            result
+                .to_list()
+                .iter()
+                .try_for_each(|r| self.writer.write(process, r.address, &value).map(|_| ()))?
         }
         Ok("Write successful".to_owned())
     }
@@ -127,7 +130,7 @@ fn list_processes() -> Result<String> {
 
 fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
     let pattern = pattern.trim();
-    let parts:Vec<_> = pattern.split(':').collect();
+    let parts: Vec<_> = pattern.split(':').collect();
     if parts.len() != 2 {
         return Err(eyre!("There are multiple : in the pattern"));
     }
@@ -135,9 +138,15 @@ fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
     let values = parts[1].split(',');
     let data_types = values.map(ScanType::from_str).collect::<Result<Vec<_>>>()?;
     // Anyway an arg0 must be provided. It determines the width of the pattern
-    let arg0 = data_types.get(0).map(|v|v.clone()).ok_or(eyre!("Not enough values provided"))?;
+    let arg0 = data_types
+        .get(0)
+        .map(|v| v.clone())
+        .ok_or(eyre!("Not enough values provided"))?;
     // arg1 is optional
-    let arg1 = data_types.get(1).map(|v|v.clone()).ok_or(eyre!("Not enough values provided"));
+    let arg1 = data_types
+        .get(1)
+        .map(|v| v.clone())
+        .ok_or(eyre!("Not enough values provided"));
     let pattern = match operator {
         "=" => Ok(BasicScanPattern::Exact(arg0)),
         ">=" => Ok(BasicScanPattern::GreaterOrEqualThan(arg0)),
@@ -160,8 +169,7 @@ fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
 }
 
 fn print_help() -> Result<String> {
-    Ok(
-        "Commands:
+    Ok("Commands:
         attach <pid> - Attach to a process
         run <pattern> - Run a scan
         next <pattern> - Run a scan with the previous results
@@ -170,6 +178,5 @@ fn print_help() -> Result<String> {
         ps - List all processes
         help - Print this help message
         exit - Exit the program"
-            .to_owned(),
-    )
+        .to_owned())
 }

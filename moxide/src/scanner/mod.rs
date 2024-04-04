@@ -1,23 +1,28 @@
+mod patterns;
 mod scan_type;
 mod scanner;
 mod writer;
+
 use crate::process::Process;
-pub use crate::scanner::scan_type::ScanType;
+pub use patterns::*;
+pub use scan_type::*;
+pub use scanner::{ScanConfig, ScanResult, Scanner};
+pub use writer::BasicWriter;
 
-pub use self::scanner::{BasicScanPattern, BasicScanResult};
-pub use self::scanner::{ScanConfig, ScanPattern, ScanResult, Scanner};
-pub use self::writer::Writer;
+use scanner::BasicScanResult;
 
-pub struct BasicScanner {}
+pub struct BasicScanner<T: ScannableCandidate> {
+    result: Option<ListScanResult<T>>,
+}
 
-pub struct BasicScanResultGroup {
-    results: Vec<BasicScanResult>,
+pub struct BasicScanResultGroup<T: ScannableCandidate> {
+    results: Vec<BasicScanResult<T>>,
     start_address: usize,
     length: usize,
 }
 
-impl BasicScanResultGroup {
-    fn new(results: Vec<BasicScanResult>, start_address: usize, length: usize) -> Self {
+impl<T: ScannableCandidate> BasicScanResultGroup<T> {
+    fn new(results: Vec<BasicScanResult<T>>, start_address: usize, length: usize) -> Self {
         Self {
             results,
             start_address,
@@ -26,10 +31,10 @@ impl BasicScanResultGroup {
     }
 }
 
-pub struct ListScanResult(Vec<BasicScanResultGroup>);
+pub struct ListScanResult<T: ScannableCandidate>(Vec<BasicScanResultGroup<T>>);
 
-impl ScanResult for ListScanResult {
-    fn to_list(&self) -> Vec<BasicScanResult> {
+impl<T: ScannableCandidate> ScanResult<T> for ListScanResult<T> {
+    fn to_list(&self) -> Vec<BasicScanResult<T>> {
         self.0
             .iter()
             .flat_map(|group| group.results.clone())
@@ -46,21 +51,21 @@ impl ScanResult for ListScanResult {
     }
 }
 
-impl From<Vec<BasicScanResultGroup>> for ListScanResult {
-    fn from(value: Vec<BasicScanResultGroup>) -> Self {
+impl<T: ScannableCandidate> From<Vec<BasicScanResultGroup<T>>> for ListScanResult<T> {
+    fn from(value: Vec<BasicScanResultGroup<T>>) -> Self {
         Self(value)
     }
 }
 
-impl Scanner for BasicScanner {
-    type Result = ListScanResult;
-    fn new_scan<Pattern: ScanPattern>(
-        &self,
+impl<T: ScannableCandidate> Scanner<T> for BasicScanner<T> {
+    type Result = ListScanResult<T>;
+    fn new_scan<Pattern: ScanPattern<T>>(
+        &mut self,
         target: &Process,
         config: &ScanConfig,
         pattern: &Pattern,
-    ) -> Self::Result {
-        let size = config.width;
+    ) -> usize {
+        let size = T::width();
         let mut result = Self::Result::new();
         let regions = target
             .memory_regions()
@@ -79,22 +84,16 @@ impl Scanner for BasicScanner {
                         .enumerate()
                         .step_by(config.alignment)
                         .filter_map(|(offset, window)| {
-                            if pattern
-                                .matches(
-                                    &ScanType::from_ne_bytes(window, pattern.type_reference()),
-                                    &Default::default(),
-                                )
-                                .ok()?
-                            {
+                            if pattern.matches(&T::from_raw_bytes(window), &T::default()) {
                                 Some(BasicScanResult::new(
                                     region.BaseAddress as usize + offset,
-                                    ScanType::from_ne_bytes(window, pattern.type_reference()),
+                                    T::from_raw_bytes(window),
                                 ))
                             } else {
                                 None
                             }
                         })
-                        .collect::<Vec<BasicScanResult>>();
+                        .collect::<Vec<BasicScanResult<T>>>();
                     let result_group = BasicScanResultGroup::new(
                         partial_result,
                         region.BaseAddress as usize,
@@ -110,36 +109,45 @@ impl Scanner for BasicScanner {
                 ),
             }
         });
-        result
+        let count = result.count();
+        self.result = Some(result);
+        count
     }
-    fn next_scan<Pattern: ScanPattern>(
-        &self,
+    fn next_scan<Pattern: ScanPattern<T>>(
+        &mut self,
         target: &Process,
         config: &ScanConfig,
         pattern: &Pattern,
-        former_result: &mut Self::Result,
-    ) {
-        let size = config.width;
-        former_result.0.retain_mut(|group| {
-            let data = target
-                .read_memory(group.start_address, group.length)
-                .expect("Failed to read memory");
-            group.results.retain_mut(|result| {
-                let prev_value = result.value.clone();
-                result.value = ScanType::from_ne_bytes(
-                    data[(result.address - group.start_address)
-                        ..(result.address - group.start_address + size)]
-                        .try_into()
-                        .expect("Failed to convert slice to array"),
-                    pattern.type_reference(),
-                );
-                pattern.matches(&result.value, &prev_value).is_ok_and(|r| r)
-            });
-            if group.results.is_empty() {
-                false
-            } else {
-                true
+    ) -> usize {
+        let size = T::width();
+        match &mut self.result {
+            Some(result) => {
+                result.0.retain_mut(|group| {
+                    let data = target
+                        .read_memory(group.start_address, group.length)
+                        .expect("Failed to read memory");
+                    group.results.retain_mut(|result| {
+                        let prev_value = result.value.clone();
+                        result.value = T::from_raw_bytes(
+                            data[(result.address - group.start_address)
+                                ..(result.address - group.start_address + size)]
+                                .try_into()
+                                .expect("Failed to convert slice to array"),
+                        );
+                        pattern.matches(&result.value, &prev_value)
+                    });
+                    if group.results.is_empty() {
+                        false
+                    } else {
+                        true
+                    }
+                });
+                result.count()
             }
-        });
+            None => 0,
+        }
+    }
+    fn get_result(&self) -> Option<&Self::Result> {
+        self.result.as_ref()
     }
 }
