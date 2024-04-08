@@ -1,31 +1,28 @@
-use std::process::exit;
+use std::{process::exit, str::FromStr};
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, Context, Result};
 use moxide::{
     process::{enum_proc, Process},
     scanner::{
-        BasicScanner, BasicWriter, ListScanResult, ScanConfig, ScanResult, ScannableCandidate,
-        Scanner,
+        BasicScanner, BasicWriter, Exact, ListScanResult, ScanConfig, ScanPattern, ScanResult, ScannableCandidate, Scanner, SupportedType, TypedPattern, TypedScanner
     },
 };
+
 
 pub struct App {
     attached_process: Option<Process>,
     config: ScanConfig,
-    scanner: Vec<Box<dyn Scanner>>,
+    scanner: Vec<TypedScanner>,
     writer: BasicWriter,
 }
-
-
 
 impl App {
     pub fn new() -> App {
         App {
             attached_process: None,
-            scanner: BasicScanner {},
-            result: None,
+            scanner: vec![],
             config: ScanConfig::default(),
-            writer: Writer::new(),
+            writer: BasicWriter::new(),
         }
     }
     pub fn handle_input(&mut self, input: &str) -> Result<String> {
@@ -62,10 +59,7 @@ impl App {
             .ok_or(eyre!("No process attached"))?;
         let pattern = pattern.ok_or(eyre!("No pattern provided"))?;
         let pattern = parse_pattern(pattern)?;
-        self.config.width = pattern.1;
-        let result = self.scanner.new_scan(process, &self.config, &pattern.0);
-        let count = result.count();
-        self.result = Some(result);
+        let count = self.scanner.new_scan(process, &self.config, &pattern.0);
         Ok(format!("Scan complete. {} results found", count).to_owned())
     }
     fn next_scan(&mut self, pattern: Option<&&str>) -> Result<String> {
@@ -127,8 +121,18 @@ fn list_processes() -> Result<String> {
         .join("\n");
     Ok(output)
 }
+/// 12345_u64 -> u64
+/// 123.456_f32 -> f32
+/// 12345 -> u32
+fn extract_type_annotation(num:&str) -> Result<SupportedType> {
+    if let Some((_,type_str)) = num.split_once('_') {
+        SupportedType::from_str(type_str).wrap_err(format!("Unsupported type {}", type_str))
+    } else {
+        Ok(SupportedType::u32)
+    }
+}
 
-fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
+fn parse_pattern(pattern: &str) -> Result<TypedPattern> {
     let pattern = pattern.trim();
     let parts: Vec<_> = pattern.split(':').collect();
     if parts.len() != 2 {
@@ -136,7 +140,7 @@ fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
     }
     let operator = parts[0];
     let values = parts[1].split(',');
-    let data_types = values.map(ScanType::from_str).collect::<Result<Vec<_>>>()?;
+    let data_types = values.map(extract_type_annotation).collect::<Result<Vec<_>>>()?;
     // Anyway an arg0 must be provided. It determines the width of the pattern
     let arg0 = data_types
         .get(0)
@@ -148,7 +152,7 @@ fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
         .map(|v| v.clone())
         .ok_or(eyre!("Not enough values provided"));
     let pattern = match operator {
-        "=" => Ok(BasicScanPattern::Exact(arg0)),
+        "=" => type_to_pattern!(Exact, arg0)
         ">=" => Ok(BasicScanPattern::GreaterOrEqualThan(arg0)),
         "<=" => Ok(BasicScanPattern::LessOrEqualThan(arg0)),
         "b" => Ok(BasicScanPattern::Between(arg0, arg1?)),
@@ -165,7 +169,7 @@ fn parse_pattern(pattern: &str) -> Result<(BasicScanPattern, usize)> {
         "?" => Ok(BasicScanPattern::Unknown(arg0)),
         _ => Err(eyre!("Invalid pattern")),
     };
-    Ok((pattern?, arg0.width()))
+    Ok(pattern?)
 }
 
 fn print_help() -> Result<String> {

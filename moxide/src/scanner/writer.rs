@@ -11,3 +11,8 @@ pub trait Writer {
 
 pub struct BasicWriter;
 impl Writer for BasicWriter {}
+impl BasicWriter {
+    pub fn new() -> Self {
+        BasicWriter {}
+    }
+}

@@ -28,14 +28,19 @@ pub unsafe trait RawBytes: Sized + Copy {
     }
 }
 
+// This is fundamentally hard to manipulate at runtime
 unsafe impl<const N: usize> RawBytes for [u8; N] {}
 
-macro_rules! impl_raw_bytes {
+macro_rules! impl_basic_types {
     ($($t:ty),*) => {
         $(
             unsafe impl RawBytes for $t {}
+            impl ScannableCandidate for $t {}
+            impl EqScannable for $t {}
+            impl OrdScannable for $t {}
+            impl NumericScannable for $t {}
         )*
     };
 }
 
-impl_raw_bytes!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
+impl_basic_types!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);

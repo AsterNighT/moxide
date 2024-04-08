@@ -1,5 +1,5 @@
 [package]
-name = "oxide-cli"
+name = "moxide-cli"
 version = "0.1.0"
 authors = ["AsterNighT <asternight@outlook.com>"]
 license = "MIT"

@@ -2,13 +2,13 @@ mod patterns;
 mod scan_type;
 mod scanner;
 mod writer;
-
+mod enums;
 use crate::process::Process;
 pub use patterns::*;
 pub use scan_type::*;
 pub use scanner::{ScanConfig, ScanResult, Scanner};
 pub use writer::BasicWriter;
-
+pub use enums::{TypedPattern,TypedScanner,SupportedType};
 use scanner::BasicScanResult;
 
 pub struct BasicScanner<T: ScannableCandidate> {

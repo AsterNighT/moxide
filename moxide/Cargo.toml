@@ -15,3 +15,5 @@ winapi = { version = "0.3.9", features = [
     "impl-debug",
 ] }
 derive_more = { version = "0.99.11", features = ["display"] }
+strum = {version = "0.26.2", features = ["derive"]}
+strum_macros = "0.26.2"
