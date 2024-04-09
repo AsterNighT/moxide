@@ -8,6 +8,11 @@ use winapi::ctypes::c_void;
 use winapi::shared::minwindef::HMODULE;
 use winapi::shared::minwindef::{DWORD, FALSE};
 
+const MASK: u32 = winnt::PAGE_EXECUTE_READWRITE
+        | winnt::PAGE_EXECUTE_WRITECOPY
+        | winnt::PAGE_READWRITE
+        | winnt::PAGE_WRITECOPY;
+
 pub struct Process {
     pid: u32,
     handle: NonNull<c_void>,
@@ -130,7 +135,9 @@ impl Process {
             // SAFETY: a non-zero amount was written to the structure
             let info = unsafe { info.assume_init() };
             base = info.BaseAddress as usize + info.RegionSize;
-            regions.push(info);
+            if info.Protect & MASK !=0 {
+                regions.push(info);
+            }
         }
     }
 }

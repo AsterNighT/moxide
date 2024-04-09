@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::{Add, Sub};
 
-pub trait ScannableCandidate: RawBytes + Clone + Display + Default{}
+pub trait ScannableCandidate: Copy + Display {}
 
 // Allow exact matching
 pub trait EqScannable: ScannableCandidate + PartialEq {}

@@ -1,18 +1,14 @@
 use crate::process::Process;
 use color_eyre::eyre::Result;
 
-use crate::scanner::RawBytes;
-
-pub trait Writer {
-    fn write<T: RawBytes>(&self, target: &Process, address: usize, value: &T) -> Result<usize> {
-        target.write_memory(address, &value.to_raw_bytes())
-    }
-}
+use super::Scannable;
 
 pub struct BasicWriter;
-impl Writer for BasicWriter {}
 impl BasicWriter {
     pub fn new() -> Self {
         BasicWriter {}
+    }
+    pub fn write<T: Scannable>(&self, target: &Process, address: usize, value: &T) -> Result<usize> {
+        target.write_memory(address, &value.mem_view())
     }
 }
